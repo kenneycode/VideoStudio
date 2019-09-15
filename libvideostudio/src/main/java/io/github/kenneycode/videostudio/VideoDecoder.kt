@@ -1,11 +1,20 @@
 package io.github.kenneycode.videostudio
 
+import android.graphics.SurfaceTexture
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
-import android.util.Log
+import android.view.Surface
 import java.nio.ByteBuffer
+
+/**
+ *
+ *      Coded by kenney
+ *
+ *      http://www.github.com/kenneycode
+ *
+ **/
 
 class VideoDecoder {
 
@@ -21,37 +30,38 @@ class VideoDecoder {
     private lateinit var mediaExtractor: MediaExtractor
     private lateinit var mediaCodec : MediaCodec
     private lateinit var byteBuffer : ByteBuffer
-    private var startTime = 0L
-    private var endTime = 0L
+    private lateinit var surface: Surface
     private var timestamp = 0L
     private var width = 0
     private var height = 0
     private var duration = 0L
     private var filePath = ""
+    private var eos = false
 
-    fun init(filePath : String, startTime : Long, endTime : Long) {
+    fun init(filePath : String, surfaceTexture: SurfaceTexture) {
         try {
-            initParameters(filePath, startTime, endTime)
-            initCodec()
+            initParameters(filePath)
+            initCodec(surfaceTexture)
         } catch (e : Exception) {
+            e.printStackTrace()
         }
     }
 
-    private fun initParameters(filePath : String, startTime : Long, endTime : Long) {
+    private fun initParameters(filePath : String) {
         try {
             this.filePath = filePath
-            this.startTime = startTime
-            this.endTime = endTime
             val mr = MediaMetadataRetriever()
             mr.setDataSource(filePath)
             width = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt()
             height = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt()
             duration = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION).toLong()
         } catch (e : Exception) {
+            e.printStackTrace()
         }
     }
 
-    private fun initCodec() {
+    private fun initCodec(surfaceTexture: SurfaceTexture) {
+        surface = Surface(surfaceTexture)
         mediaExtractor = MediaExtractor()
         mediaExtractor.setDataSource(filePath)
         val trackCount = mediaExtractor.getTrackCount()
@@ -68,62 +78,53 @@ class VideoDecoder {
             return
         }
         val videoFormat = mediaExtractor.getTrackFormat(videoTrackIndex)
-        Log.e(TAG, "视频编码器 run: " + videoFormat.toString())
         val videoMime = videoFormat.getString(MediaFormat.KEY_MIME)
         frameRate = videoFormat.getInteger(MediaFormat.KEY_FRAME_RATE)//24
         maxInputSize = videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE)//45591
         byteBuffer = ByteBuffer.allocate(maxInputSize)
         mediaCodec = MediaCodec.createDecoderByType(videoMime)
-        mediaCodec.configure(videoFormat, videoDecodeOutputSurface, null, 0)
+        mediaCodec.configure(videoFormat, surface, null, 0)
         mediaCodec.start()
         mediaExtractor.selectTrack(videoTrackIndex)
-        mediaExtractor.seekTo(startTime, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
     }
 
-    fun decodeToSurface() : Boolean {
+    fun decode() : Boolean {
+        LogUtil.loge(TAG, "decodeToSurface start")
         while (!Thread.interrupted()) {
-            Log.e("debug", "decodeToSurface, filePath = $filePath")
-            val sampleSize = mediaExtractor.readSampleData(byteBuffer, 0)
-            //填充要解码的数据
-            if (sampleSize != -1) {
-                if (sampleSize >= 0) {
-                    val sampleTime = mediaExtractor.sampleTime
-                    if (sampleTime >= 0) {
-                        val inputBufferIndex = mediaCodec.dequeueInputBuffer(-1)
-                        if (inputBufferIndex >= 0) {
-                            val inputBuffer = mediaCodec.inputBuffers[inputBufferIndex]
-                            if (inputBuffer != null) {
-                                inputBuffer.clear()
-                                inputBuffer.put(byteBuffer)
-                                mediaCodec.queueInputBuffer(inputBufferIndex, 0, sampleSize, sampleTime, 0)
-                                mediaExtractor.advance()
-                            }
-                        }
+            LogUtil.loge(TAG,  "decodeToSurface loop")
+            if (!eos) {
+                val inputBufferIndex = mediaCodec.dequeueInputBuffer(10000)
+                if (inputBufferIndex >= 0) {
+                    val buffer = mediaCodec.getInputBuffers()[inputBufferIndex]
+                    val sampleSize = mediaExtractor.readSampleData(buffer, 0)
+                    if (sampleSize < 0) {
+                        LogUtil.loge(TAG, "decodeToSurface BUFFER_FLAG_END_OF_STREAM");
+                        mediaCodec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        eos = true
+                    } else {
+                        LogUtil.loge(TAG, "decodeToSurface mediaCodec.queueInputBuffer")
+                        mediaCodec.queueInputBuffer(inputBufferIndex, 0, sampleSize, mediaExtractor.sampleTime, 0)
+                        mediaExtractor.advance()
                     }
                 }
             }
-            //解码已填充的数据
-            val outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
-            when (outputBufferIndex) {
-                MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED -> {
-                }
-                MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                }
-                MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                }
-                else -> {
-                    timestamp = bufferInfo.presentationTimeUs
-                    mediaCodec.releaseOutputBuffer(outputBufferIndex, timestamp < endTime)
-                    Log.e("debug", "releaseOutputBuffer, filePath = $filePath, timestamp < endTime = ${timestamp < endTime}")
-                    return timestamp < endTime
-                }
-            }
-            if (sampleSize == -1) {
-                Log.e("debug", "decodeToSurface return false 0")
+            val outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000)
+            LogUtil.loge(TAG, "mediaCodec.dequeueOutputBuffer, outputBufferIndex = $outputBufferIndex")
+            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                LogUtil.loge(TAG, "decodeToSurface decode complete")
                 return false
             }
+            when (outputBufferIndex) {
+                MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED, MediaCodec.INFO_OUTPUT_FORMAT_CHANGED, MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                }
+                else -> {
+                    timestamp = bufferInfo.presentationTimeUs;
+                    LogUtil.loge(TAG, "mediaCodec.releaseOutputBuffer, outputBufferIndex = $outputBufferIndex, timestamp = $timestamp")
+                    mediaCodec.releaseOutputBuffer(outputBufferIndex, true)
+                    return true
+                }
+            }
         }
-        Log.e("debug", "decodeToSurface return false 1")
         return false
     }
 
@@ -143,36 +144,6 @@ class VideoDecoder {
         return timestamp
     }
 
-    fun getTimestamps(): List<Long> {
-        val timestamps = mutableListOf<Long>()
-        try {
-            var eos = false
-            val extractor = MediaExtractor()
-            extractor.setDataSource(filePath)
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                val mime = format.getString(MediaFormat.KEY_MIME)
-                if (mime.startsWith("video/")) {
-                    extractor.selectTrack(i)
-                    break
-                }
-            }
-            val buffer = ByteBuffer.allocate(getVideoWidth() * getVideoHeight())
-            while (!eos) {
-                val sampleSize = extractor.readSampleData(buffer, 0)
-                if (sampleSize < 0) {
-                    eos = true
-                } else {
-                    val t = extractor.sampleTime
-                    timestamps.add(t)
-                    extractor.advance()
-                }
-            }
-        } catch (e: Exception) {
-        }
-        return timestamps
-    }
-
     fun seekTo(timestamp : Long) {
         mediaExtractor.seekTo(timestamp, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
     }
@@ -183,6 +154,7 @@ class VideoDecoder {
             mediaExtractor.release()
             mediaCodec.stop()
             mediaCodec.release()
+            surface.release()
         } catch (e : Exception) {
             e.printStackTrace()
         }
