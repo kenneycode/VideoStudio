@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
             override fun onDrawFrame(gl: GL10?) {
                 Log.e("debug", "onDrawFrame")
                 if (hasNewFrame) {
+                    hasNewFrame = false
                     surfaceTexture.updateTexImage()
                     val stMatrix = FloatArray(16)
                     surfaceTexture.getTransformMatrix(stMatrix)
@@ -54,7 +55,6 @@ class MainActivity : AppCompatActivity() {
                     renderChain.render(input, data)
                     Thread.sleep(40)
                     videoDecoder.decode()
-                    hasNewFrame = false
                 }
             }
 
@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity() {
                     hasNewFrame = true
                     glSurfaceView.requestRender()
                 }
-                videoDecoder.init("your video path", surfaceTexture)
+                videoDecoder.init("/sdcard/2ae0840bf9e995adc1a382f78458cafb.mp4", surfaceTexture)
                 videoDecoder.decode()
             }
 

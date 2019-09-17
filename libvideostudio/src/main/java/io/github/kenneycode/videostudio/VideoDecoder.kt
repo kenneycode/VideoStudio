@@ -36,7 +36,7 @@ class VideoDecoder {
     private var height = 0
     private var duration = 0L
     private var filePath = ""
-    private var eos = false
+    private var readDataEOS = false
 
     fun init(filePath : String, surfaceTexture: SurfaceTexture) {
         try {
@@ -89,20 +89,20 @@ class VideoDecoder {
     }
 
     fun decode() : Boolean {
-        LogUtil.loge(TAG, "decodeToSurface start")
+        LogUtil.loge(TAG, "decode start")
         while (!Thread.interrupted()) {
-            LogUtil.loge(TAG,  "decodeToSurface loop")
-            if (!eos) {
+            LogUtil.loge(TAG,  "decode loop")
+            if (!readDataEOS) {
                 val inputBufferIndex = mediaCodec.dequeueInputBuffer(10000)
                 if (inputBufferIndex >= 0) {
                     val buffer = mediaCodec.getInputBuffers()[inputBufferIndex]
                     val sampleSize = mediaExtractor.readSampleData(buffer, 0)
                     if (sampleSize < 0) {
-                        LogUtil.loge(TAG, "decodeToSurface BUFFER_FLAG_END_OF_STREAM");
+                        LogUtil.loge(TAG, "decode BUFFER_FLAG_END_OF_STREAM");
                         mediaCodec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                        eos = true
+                        readDataEOS = true
                     } else {
-                        LogUtil.loge(TAG, "decodeToSurface mediaCodec.queueInputBuffer")
+                        LogUtil.loge(TAG, "decode mediaCodec.queueInputBuffer")
                         mediaCodec.queueInputBuffer(inputBufferIndex, 0, sampleSize, mediaExtractor.sampleTime, 0)
                         mediaExtractor.advance()
                     }
@@ -110,18 +110,18 @@ class VideoDecoder {
             }
             val outputBufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10000)
             LogUtil.loge(TAG, "mediaCodec.dequeueOutputBuffer, outputBufferIndex = $outputBufferIndex")
-            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                LogUtil.loge(TAG, "decodeToSurface decode complete")
-                return false
-            }
             when (outputBufferIndex) {
                 MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED, MediaCodec.INFO_OUTPUT_FORMAT_CHANGED, MediaCodec.INFO_TRY_AGAIN_LATER -> {
                 }
                 else -> {
                     timestamp = bufferInfo.presentationTimeUs;
                     LogUtil.loge(TAG, "mediaCodec.releaseOutputBuffer, outputBufferIndex = $outputBufferIndex, timestamp = $timestamp")
-                    mediaCodec.releaseOutputBuffer(outputBufferIndex, true)
-                    return true
+                    val isEOSBuffer = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0
+                    if (isEOSBuffer) {
+                        LogUtil.loge(TAG, "decode complete")
+                    }
+                    mediaCodec.releaseOutputBuffer(outputBufferIndex, !isEOSBuffer)
+                    return !isEOSBuffer
                 }
             }
         }
