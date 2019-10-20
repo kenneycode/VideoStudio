@@ -30,12 +30,11 @@ class VideoEncoder {
 
     private val MIME_TYPE = "video/avc"
     private val BIT_RATE = 5120000
-    private val FRAME_RATE = 25
+    private val FRAME_RATE = 10
     private val IFRAME_INTERVAL = 1
     private val bufferInfo = MediaCodec.BufferInfo()
     private lateinit var mediaCodec: MediaCodec
     private lateinit var egl: EncodeEGL
-    private lateinit var eglSurface: EGLSurface
     private lateinit var mediaMuxer: MediaMuxer
     private var trackIndex = 0
     private var muxerStarted = false
@@ -95,25 +94,25 @@ class VideoEncoder {
             }
             var encoderOutputBuffers = mediaCodec.getOutputBuffers()
             while (true) {
-                val encoderStatus = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
-                if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                val ret = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
+                if (ret == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     if (!endOfStream) {
                         break
                     }
-                } else if (encoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                } else if (ret == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                     encoderOutputBuffers = mediaCodec.outputBuffers
-                } else if (encoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                } else if (ret == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (muxerStarted) {
-                        mediaCodec.releaseOutputBuffer(encoderStatus, false)
+                        mediaCodec.releaseOutputBuffer(ret, false)
                         continue
                     }
                     trackIndex = mediaMuxer.addTrack(mediaCodec.outputFormat)
                     mediaMuxer.start()
                     muxerStarted = true
                 } else {
-                    val encodedData = encoderOutputBuffers[encoderStatus]
+                    val encodedData = encoderOutputBuffers[ret]
                     if (encodedData == null) {
-                        mediaCodec.releaseOutputBuffer(encoderStatus, false)
+                        mediaCodec.releaseOutputBuffer(ret, false)
                         continue
                     } else {
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
@@ -121,7 +120,7 @@ class VideoEncoder {
                         }
                         if (bufferInfo.size != 0) {
                             if (!muxerStarted) {
-                                mediaCodec.releaseOutputBuffer(encoderStatus, false)
+                                mediaCodec.releaseOutputBuffer(ret, false)
                                 continue
 
                             }
@@ -129,7 +128,7 @@ class VideoEncoder {
                             encodedData.limit(bufferInfo.offset + bufferInfo.size)
                             mediaMuxer.writeSampleData(trackIndex, encodedData, bufferInfo)
                         }
-                        mediaCodec.releaseOutputBuffer(encoderStatus, false)
+                        mediaCodec.releaseOutputBuffer(ret, false)
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                             break
                         }
@@ -283,11 +282,6 @@ class VideoEncoder {
 
             GLES30.glUseProgram(programId)
 
-            val vertexDataBuffer = ByteBuffer.allocateDirect(vertexData.size * java.lang.Float.SIZE / 8)
-                .order(ByteOrder.nativeOrder())
-                .asFloatBuffer()
-            vertexDataBuffer.put(vertexData)
-            vertexDataBuffer.position(0)
             GLES30.glEnableVertexAttribArray(positionLocation)
             GLES30.glVertexAttribPointer(
                 positionLocation,
@@ -298,12 +292,6 @@ class VideoEncoder {
                 vertexDataBuffer
             )
 
-            val textureCoordinateBuffer =
-                ByteBuffer.allocateDirect(textureCoordinateData.size * java.lang.Float.SIZE / 8)
-                    .order(ByteOrder.nativeOrder())
-                    .asFloatBuffer()
-            textureCoordinateBuffer.put(textureCoordinateData)
-            textureCoordinateBuffer.position(0)
             GLES30.glEnableVertexAttribArray(textureCoordinateLocation)
             GLES30.glVertexAttribPointer(
                 textureCoordinateLocation,
@@ -351,7 +339,7 @@ class VideoEncoder {
             vertexDataBuffer.position(0)
             positionLocation = GLES30.glGetAttribLocation(programId, "a_position")
 
-            val textureCoordinateBuffer =
+            textureCoordinateBuffer =
                 ByteBuffer.allocateDirect(textureCoordinateData.size * java.lang.Float.SIZE / 8)
                     .order(ByteOrder.nativeOrder())
                     .asFloatBuffer()
