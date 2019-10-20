@@ -1,22 +1,16 @@
 package io.github.kenneycode.videostudio.demo
 
-import android.graphics.SurfaceTexture
-import android.opengl.GLES11Ext
-import android.opengl.GLES30
-import android.opengl.GLSurfaceView
+import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import io.github.kenneycode.funrenderer.common.Keys
-import io.github.kenneycode.funrenderer.common.RenderChain
-import io.github.kenneycode.funrenderer.io.Input
-import io.github.kenneycode.funrenderer.io.Texture
-import io.github.kenneycode.funrenderer.renderer.OES2RGBARenderer
-import io.github.kenneycode.funrenderer.renderer.ScreenRenderer
-import io.github.kenneycode.videostudio.VideoDecoder
+import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.RecyclerView
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import io.github.kenneycode.videostudio.demo.samples.SampleVideoEncoder
 import kotlinx.android.synthetic.main.activity_main.*
-import javax.microedition.khronos.egl.EGLConfig
-import javax.microedition.khronos.opengles.GL10
 
 /**
  *
@@ -31,68 +25,42 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        glSurfaceView.setEGLContextClientVersion(3)
-        glSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 0, 0)
-        glSurfaceView.setRenderer(object : GLSurfaceView.Renderer {
+        val sampleItems = arrayOf(
+                SampleItem(getString(R.string.sample_video_decoder), SampleVideoDecoder::class.java),
+                SampleItem(getString(R.string.sample_video_encoder), SampleVideoEncoder::class.java)
+        )
 
-            private lateinit var surfaceTexture: SurfaceTexture
-            private lateinit var renderChain: RenderChain
-            private lateinit var input: Input
-            private var oesTexture = 0
-            private val videoDecoder = VideoDecoder()
-            private var hasNewFrame = false
-
-
-            override fun onDrawFrame(gl: GL10?) {
-                Log.e("debug", "onDrawFrame")
-                if (hasNewFrame) {
-                    hasNewFrame = false
-                    surfaceTexture.updateTexImage()
-                    val stMatrix = FloatArray(16)
-                    surfaceTexture.getTransformMatrix(stMatrix)
-                    val data = mutableMapOf<String, Any>()
-                    data[Keys.ST_MATRIX] = stMatrix
-                    renderChain.render(input, data)
-                    Thread.sleep(40)
-                    videoDecoder.decode()
-                }
-            }
-
-            override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-                input = Texture(oesTexture, width, height, false)
-            }
-
-            override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-
-                renderChain = RenderChain.create()
-                        .addRenderer(OES2RGBARenderer())
-                        .addRenderer(ScreenRenderer())
-                renderChain.init()
-
-                oesTexture = createOESTexture()
-                surfaceTexture = SurfaceTexture(oesTexture)
-                surfaceTexture.setOnFrameAvailableListener {
-                    hasNewFrame = true
-                    glSurfaceView.requestRender()
-                }
-                videoDecoder.init("/sdcard/2ae0840bf9e995adc1a382f78458cafb.mp4", surfaceTexture)
-                videoDecoder.decode()
-            }
-
-        })
-        glSurfaceView.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        val layoutManager = LinearLayoutManager(this)
+        layoutManager.orientation = LinearLayoutManager.VERTICAL
+        samples.layoutManager = layoutManager
+        samples.adapter = SampleAdapter(sampleItems)
     }
 
-    fun createOESTexture() : Int {
-        val textures = IntArray(1)
-        GLES30.glGenTextures(textures.size, textures, 0)
-        GLES30.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textures[0])
-        GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
-        GLES30.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
-        return return textures[0]
+    inner class SampleItem(val sampleSame: String, val sampleActivity: Class<*>)
+
+    inner class SampleAdapter(private val sampleItems: Array<SampleItem>) : RecyclerView.Adapter<VH>() {
+
+        override fun onCreateViewHolder(p0: ViewGroup, p1: Int): VH {
+            return VH(LayoutInflater.from(p0.context).inflate(R.layout.item_sample, null, false))
+        }
+
+        override fun getItemCount(): Int {
+            return sampleItems.size
+        }
+
+        override fun onBindViewHolder(vh: VH, position: Int) {
+            vh.button.text = sampleItems[position].sampleSame
+            vh.button.setOnClickListener {
+                val intent = Intent(this@MainActivity, sampleItems[position].sampleActivity)
+                intent.putExtra(Constants.KEY_SAMPLE_NAME, sampleItems[position].sampleSame)
+                this@MainActivity.startActivity(intent)
+            }
+        }
+
+    }
+
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val button = itemView.findViewById<Button>(R.id.button)
     }
 
 }
