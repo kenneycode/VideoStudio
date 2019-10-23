@@ -28,10 +28,6 @@ class VideoEncoder {
         private val TAG = VideoEncoder::class.java.simpleName
     }
 
-    private val MIME_TYPE = "video/avc"
-    private val BIT_RATE = 5120000
-    private val FRAME_RATE = 10
-    private val IFRAME_INTERVAL = 1
     private val bufferInfo = MediaCodec.BufferInfo()
     private lateinit var mediaCodec: MediaCodec
     private lateinit var egl: EncodeEGL
@@ -40,14 +36,14 @@ class VideoEncoder {
     private var muxerStarted = false
     private lateinit var encodeRenderer: EncoderRenderer
 
-    fun init(filePath: String, width: Int, height: Int, shareContext: EGLContext) {
+    fun init(filePath: String, width: Int, height: Int, shareContext: EGLContext, mimeType: String = "video/avc", bitRate: Int = 5120000, frameRate: Int = 10, iframeInterval: Int = 1) {
         val format = MediaFormat.createVideoFormat("video/avc", width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
-            setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+            setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iframeInterval)
         }
-        mediaCodec = MediaCodec.createEncoderByType(MIME_TYPE)
+        mediaCodec = MediaCodec.createEncoderByType(mimeType)
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
 
         egl = EncodeEGL(shareContext, mediaCodec.createInputSurface()).apply {
