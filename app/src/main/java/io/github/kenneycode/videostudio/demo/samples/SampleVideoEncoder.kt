@@ -4,13 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
-import android.support.v4.app.Fragment
-import android.support.v7.app.AppCompatActivity
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import io.github.kenneycode.glkit.EGL
+import androidx.appcompat.app.AppCompatActivity
+import io.github.kenneycode.fusion.context.FusionEGL
 import io.github.kenneycode.videostudio.GLUtil
 import io.github.kenneycode.videostudio.VideoEncoder
 import io.github.kenneycode.videostudio.demo.R
@@ -32,8 +27,8 @@ class SampleVideoEncoder : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sample_common)
         Thread {
-            val egl = EGL().apply {
-                init()
+            val egl = FusionEGL().apply {
+                init(null)
                 bind()
             }
             val bitmap = decodeBitmapFromAssets("test.png")
