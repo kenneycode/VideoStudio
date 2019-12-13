@@ -12,7 +12,7 @@ import io.github.kenneycode.fusion.process.RenderChain
 import io.github.kenneycode.fusion.renderer.DisplayRenderer
 import io.github.kenneycode.fusion.renderer.OES2RGBARenderer
 import io.github.kenneycode.fusion.util.GLUtil
-import io.github.kenneycode.videostudio.VideoDecoder
+import io.github.kenneycode.videostudio.decode.VideoDecoder
 import io.github.kenneycode.videostudio.demo.R
 import kotlinx.android.synthetic.main.activity_sample_common.*
 import javax.microedition.khronos.egl.EGLConfig
@@ -22,7 +22,7 @@ import javax.microedition.khronos.opengles.GL10
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  *      MediaCodec视频解码demo
  *      video decode demo using MediaCodec

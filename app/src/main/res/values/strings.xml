@@ -2,4 +2,5 @@
     <string name="app_name">VideoStudio</string>
     <string name="sample_video_decoder">video decoder</string>
     <string name="sample_video_encoder">video encoder</string>
+    <string name="sample_media_clip">media clip</string>
 </resources>

@@ -7,14 +7,14 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import io.github.kenneycode.fusion.context.FusionEGL
 import io.github.kenneycode.videostudio.GLUtil
-import io.github.kenneycode.videostudio.VideoEncoder
+import io.github.kenneycode.videostudio.encode.VideoEncoder
 import io.github.kenneycode.videostudio.demo.R
 
 /**
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  *      MediaCodec视频编码demo
  *      video encode demo using MediaCodec

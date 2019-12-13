@@ -9,6 +9,7 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import io.github.kenneycode.videostudio.demo.samples.SampleMediaClip
 import io.github.kenneycode.videostudio.demo.samples.SampleVideoDecoder
 import io.github.kenneycode.videostudio.demo.samples.SampleVideoEncoder
 import kotlinx.android.synthetic.main.activity_main.*
@@ -17,7 +18,7 @@ import kotlinx.android.synthetic.main.activity_main.*
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  **/
 
@@ -28,11 +29,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         val sampleItems = arrayOf(
                 SampleItem(getString(R.string.sample_video_decoder), SampleVideoDecoder::class.java),
-                SampleItem(getString(R.string.sample_video_encoder), SampleVideoEncoder::class.java)
+                SampleItem(getString(R.string.sample_video_encoder), SampleVideoEncoder::class.java),
+                SampleItem(getString(R.string.sample_media_clip), SampleMediaClip::class.java)
         )
 
         val layoutManager = LinearLayoutManager(this)
-        layoutManager.orientation = LinearLayoutManager.VERTICAL
+        layoutManager.orientation = RecyclerView.VERTICAL
         samples.layoutManager = layoutManager
         samples.adapter = SampleAdapter(sampleItems)
     }

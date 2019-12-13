@@ -6,7 +6,7 @@ import android.util.Log
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  **/
 

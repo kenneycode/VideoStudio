@@ -22,6 +22,7 @@
         </activity>
         <activity android:name=".samples.SampleVideoDecoder" />
         <activity android:name=".samples.SampleVideoEncoder" />
+        <activity android:name=".samples.SampleMediaClip"/>
     </application>
 
 </manifest>

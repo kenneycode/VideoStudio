@@ -9,7 +9,7 @@ import android.opengl.GLUtils
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  *      GL util 类
  *      GL util

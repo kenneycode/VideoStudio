@@ -1,4 +1,4 @@
-package io.github.kenneycode.videostudio
+package io.github.kenneycode.videostudio.encode
 
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -6,6 +6,8 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.opengl.*
 import android.view.Surface
+import io.github.kenneycode.videostudio.GLUtil
+import io.github.kenneycode.videostudio.LogUtil
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -15,7 +17,7 @@ import java.nio.FloatBuffer
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  *      视频编码器
  *      video encoder

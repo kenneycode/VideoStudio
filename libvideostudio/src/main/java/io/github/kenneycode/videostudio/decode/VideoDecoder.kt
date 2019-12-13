@@ -1,4 +1,4 @@
-package io.github.kenneycode.videostudio
+package io.github.kenneycode.videostudio.decode
 
 import android.graphics.SurfaceTexture
 import android.media.MediaCodec
@@ -6,13 +6,14 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.view.Surface
+import io.github.kenneycode.videostudio.LogUtil
 import java.nio.ByteBuffer
 
 /**
  *
  *      Coded by kenney
  *
- *      http://www.github.com/kenneycode
+ *      http://www.github.com/kenneycode/VideoStudio
  *
  **/
 
@@ -91,7 +92,7 @@ class VideoDecoder {
     fun decode() : Boolean {
         LogUtil.loge(TAG, "decode start")
         while (!Thread.interrupted()) {
-            LogUtil.loge(TAG,  "decode loop")
+            LogUtil.loge(TAG, "decode loop")
             if (!readDataEOS) {
                 val inputBufferIndex = mediaCodec.dequeueInputBuffer(10000)
                 if (inputBufferIndex >= 0) {
