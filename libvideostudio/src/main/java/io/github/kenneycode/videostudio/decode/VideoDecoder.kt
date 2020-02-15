@@ -36,23 +36,30 @@ class VideoDecoder {
     private var width = 0
     private var height = 0
     private var duration = 0L
-    private var filePath = ""
+    private var videoPath = ""
     private var readDataEOS = false
 
-    fun init(filePath : String, surfaceTexture: SurfaceTexture) {
+    fun init() {
         try {
-            initParameters(filePath)
-            initCodec(surfaceTexture)
+            initParameters()
+            initCodec()
         } catch (e : Exception) {
             e.printStackTrace()
         }
     }
 
-    private fun initParameters(filePath : String) {
+    fun setVideoPath(videoPath: String) {
+        this.videoPath = videoPath
+    }
+
+    fun setSurface(surface: Surface) {
+        this.surface = surface
+    }
+
+    private fun initParameters() {
         try {
-            this.filePath = filePath
             val mr = MediaMetadataRetriever()
-            mr.setDataSource(filePath)
+            mr.setDataSource(videoPath)
             width = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt()
             height = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt()
             duration = mr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION).toLong()
@@ -61,10 +68,9 @@ class VideoDecoder {
         }
     }
 
-    private fun initCodec(surfaceTexture: SurfaceTexture) {
-        surface = Surface(surfaceTexture)
+    private fun initCodec() {
         mediaExtractor = MediaExtractor()
-        mediaExtractor.setDataSource(filePath)
+        mediaExtractor.setDataSource(videoPath)
         val trackCount = mediaExtractor.getTrackCount()
         for (i in 0 until trackCount) {
             val trackFormat = mediaExtractor.getTrackFormat(i)

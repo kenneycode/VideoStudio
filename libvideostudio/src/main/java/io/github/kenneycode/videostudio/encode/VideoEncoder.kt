@@ -34,18 +34,22 @@ class VideoEncoder {
     private lateinit var mediaCodec: MediaCodec
     private lateinit var egl: EncodeEGL
     private lateinit var mediaMuxer: MediaMuxer
+    private var encodeWidth = 0
+    private var encodeHeight = 0
     private var trackIndex = 0
     private var muxerStarted = false
     private lateinit var encodeRenderer: EncoderRenderer
+    private lateinit var outputPath: String
+    private lateinit var shareContext: EGLContext
 
-    fun init(filePath: String, width: Int, height: Int, shareContext: EGLContext, mimeType: String = "video/avc", bitRate: Int = 5120000, frameRate: Int = 10, iframeInterval: Int = 1) {
-        val format = MediaFormat.createVideoFormat("video/avc", width, height).apply {
+    fun init(encoderConfig: EncoderConfig = EncoderConfig()) {
+        val format = MediaFormat.createVideoFormat("video/avc", encodeWidth, encodeHeight).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
-            setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iframeInterval)
+            setInteger(MediaFormat.KEY_BIT_RATE, encoderConfig.bitRate)
+            setInteger(MediaFormat.KEY_FRAME_RATE, encoderConfig.frameRate)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, encoderConfig.iframeInterval)
         }
-        mediaCodec = MediaCodec.createEncoderByType(mimeType)
+        mediaCodec = MediaCodec.createEncoderByType(encoderConfig.mimeType)
         mediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
 
         egl = EncodeEGL(shareContext, mediaCodec.createInputSurface()).apply {
@@ -54,23 +58,36 @@ class VideoEncoder {
         }
 
         encodeRenderer = EncoderRenderer().apply {
-            this.width = width
-            this.height = height
+            this.width = encodeWidth
+            this.height = encodeHeight
             init()
         }
 
         mediaCodec.start()
 
-        val file = File(filePath)
+        val file = File(outputPath)
         if (!file.exists()) {
             file.createNewFile()
         }
 
-        mediaMuxer = MediaMuxer(filePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        mediaMuxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
         trackIndex = -1
         muxerStarted = false
 
+    }
+
+    fun setOutputPath(outputPath: String) {
+        this.outputPath = outputPath
+    }
+
+    fun setShareContext(shareContext: EGLContext) {
+        this.shareContext = shareContext
+    }
+
+    fun setEncodeSize(encodeWidth: Int, encodeHeight: Int) {
+        this.encodeWidth = encodeWidth
+        this.encodeHeight = encodeHeight
     }
 
     fun encodeFrame(texture: Int, timestamp: Long) {
@@ -90,27 +107,27 @@ class VideoEncoder {
             if (endOfStream) {
                 mediaCodec.signalEndOfInputStream()
             }
-            var encoderOutputBuffers = mediaCodec.getOutputBuffers()
+            var encoderOutputBuffers = mediaCodec.outputBuffers
             while (true) {
-                val ret = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
-                if (ret == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                val bufferIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 0)
+                if (bufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     if (!endOfStream) {
                         break
                     }
-                } else if (ret == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                } else if (bufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                     encoderOutputBuffers = mediaCodec.outputBuffers
-                } else if (ret == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                } else if (bufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (muxerStarted) {
-                        mediaCodec.releaseOutputBuffer(ret, false)
+                        mediaCodec.releaseOutputBuffer(bufferIndex, false)
                         continue
                     }
                     trackIndex = mediaMuxer.addTrack(mediaCodec.outputFormat)
                     mediaMuxer.start()
                     muxerStarted = true
                 } else {
-                    val encodedData = encoderOutputBuffers[ret]
+                    val encodedData = encoderOutputBuffers[bufferIndex]
                     if (encodedData == null) {
-                        mediaCodec.releaseOutputBuffer(ret, false)
+                        mediaCodec.releaseOutputBuffer(bufferIndex, false)
                         continue
                     } else {
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) {
@@ -118,7 +135,7 @@ class VideoEncoder {
                         }
                         if (bufferInfo.size != 0) {
                             if (!muxerStarted) {
-                                mediaCodec.releaseOutputBuffer(ret, false)
+                                mediaCodec.releaseOutputBuffer(bufferIndex, false)
                                 continue
 
                             }
@@ -126,7 +143,7 @@ class VideoEncoder {
                             encodedData.limit(bufferInfo.offset + bufferInfo.size)
                             mediaMuxer.writeSampleData(trackIndex, encodedData, bufferInfo)
                         }
-                        mediaCodec.releaseOutputBuffer(ret, false)
+                        mediaCodec.releaseOutputBuffer(bufferIndex, false)
                         if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                             break
                         }
@@ -153,11 +170,6 @@ class VideoEncoder {
         private var eglDisplay = EGL14.EGL_NO_DISPLAY
         private var eglContext = EGL14.EGL_NO_CONTEXT
         private var eglSurface = EGL14.EGL_NO_SURFACE
-
-        private var previousEGLDisplay = EGL14.EGL_NO_DISPLAY
-        private var previousEGLDrawSurface = EGL14.EGL_NO_SURFACE
-        private var previousEGLReadSurface = EGL14.EGL_NO_SURFACE
-        private var previousEGLContext = EGL14.EGL_NO_CONTEXT
 
         fun init() {
             eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
@@ -217,15 +229,7 @@ class VideoEncoder {
         }
 
         fun makeCurrent() {
-            savePreviousEGLInfo()
             EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)
-        }
-
-        fun savePreviousEGLInfo() {
-            previousEGLDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
-            previousEGLDrawSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_DRAW)
-            previousEGLReadSurface = EGL14.eglGetCurrentSurface(EGL14.EGL_READ)
-            previousEGLContext = EGL14.eglGetCurrentContext()
         }
 
         fun swapBuffers(): Boolean {

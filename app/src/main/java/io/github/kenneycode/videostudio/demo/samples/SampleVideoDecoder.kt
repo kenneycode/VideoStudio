@@ -4,6 +4,7 @@ import android.graphics.SurfaceTexture
 import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.util.Log
+import android.view.Surface
 import androidx.appcompat.app.AppCompatActivity
 import io.github.kenneycode.fusion.common.DataKeys
 import io.github.kenneycode.fusion.framebuffer.FrameBuffer
@@ -39,6 +40,7 @@ class SampleVideoDecoder : AppCompatActivity() {
         glSurfaceView.setRenderer(object : GLSurfaceView.Renderer {
 
             private lateinit var surfaceTexture: SurfaceTexture
+            private lateinit var surface: Surface
             private lateinit var renderChain: RenderChain
             private lateinit var input: FrameBuffer
             private var oesTexture = 0
@@ -93,7 +95,10 @@ class SampleVideoDecoder : AppCompatActivity() {
                         glSurfaceView.requestRender()
                     }
                 }
-                videoDecoder.init("/sdcard/v1.mp4", surfaceTexture)
+                surface = Surface(surfaceTexture)
+                videoDecoder.setVideoPath("/sdcard/v1.mp4")
+                videoDecoder.setSurface(surface)
+                videoDecoder.init()
                 videoDecoder.decode()
             }
 

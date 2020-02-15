@@ -34,7 +34,10 @@ class SampleVideoEncoder : AppCompatActivity() {
             val bitmap = decodeBitmapFromAssets("test.png")
             Thread {
                 val videoEncoder = VideoEncoder()
-                videoEncoder.init("/sdcard/test.mp4", 540, 540, egl.eglContext)
+                videoEncoder.setOutputPath("/sdcard/test.mp4")
+                videoEncoder.setEncodeSize(540, 540)
+                videoEncoder.setShareContext(egl.eglContext)
+                videoEncoder.init()
                 for (i in 0 until 100) {
                     val texture = GLUtil.bitmap2Texture(rotateBitmap(bitmap, i * 2f))
                     videoEncoder.encodeFrame(texture, 100 * i * 1000000L)
