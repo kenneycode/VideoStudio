@@ -20,7 +20,7 @@ allprojects {
 
 ```
 dependencies {
-   implementation 'com.github.VideoStudio:fusion:Tag'
+	implementation 'com.github.kenneycode:VideoStudio:1.0.0'
 }
 ```
 
