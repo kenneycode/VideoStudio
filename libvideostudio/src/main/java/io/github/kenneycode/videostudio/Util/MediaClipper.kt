@@ -45,18 +45,23 @@ class MediaClipper {
             MediaExtractor().apply {
                 setDataSource(inputPath)
                 val extractorTrackIndex = getTrackIndex(this, mediaType)
+                val extractorAudioTrackIndex = getTrackIndex(this, MEDIA_TYPE.AUDIO)
                 selectTrack(extractorTrackIndex)
                 seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 val videoFormat = getTrackFormat(extractorTrackIndex)
+                val audioFormat = getTrackFormat(extractorAudioTrackIndex)
                 videoFormat.setInteger(MediaFormat.KEY_DURATION, (endTimeUs - startTimeUs).toInt())
                 val mediaMuxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                val rotation = videoFormat.getInteger(MediaFormat.KEY_ROTATION)
+                mediaMuxer.setOrientationHint(rotation)
                 val muxerTrackIndex = mediaMuxer.addTrack(videoFormat)
+                val muxerAudioTrackIndex = mediaMuxer.addTrack(audioFormat)
                 mediaMuxer.start()
                 val byteBuffer = ByteBuffer.allocate(videoFormat.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE))
                 while (true) {
                     val sampleSize = readSampleData(byteBuffer, 0)
                     if (sampleSize < 0 || sampleTime > endTimeUs) {
-                        Log.i("debugggg", "sampleSize = $sampleSize, sampleTime = $sampleTime, endTimeUs = $endTimeUs")
+                        unselectTrack(extractorTrackIndex)
                         break
                     }
                     val bufferInfo = MediaCodec.BufferInfo().apply {
@@ -68,6 +73,27 @@ class MediaClipper {
                     mediaMuxer.writeSampleData(muxerTrackIndex, byteBuffer, bufferInfo)
                     advance()
                 }
+                //音频
+                selectTrack(extractorAudioTrackIndex)
+                seekTo(startTimeUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+                while (true) {
+                    val sampleSize = readSampleData(byteBuffer, 0)
+                    if (sampleSize < 0 || sampleTime > endTimeUs) {
+                        unselectTrack(extractorAudioTrackIndex)
+                        break
+                    }
+
+                    val bufferInfo = MediaCodec.BufferInfo().apply {
+                        offset = 0
+                        size = sampleSize
+                        flags = sampleFlags
+                        presentationTimeUs = sampleTime
+                    }
+
+                    mediaMuxer.writeSampleData(muxerAudioTrackIndex, byteBuffer, bufferInfo)
+                    advance()
+                }
+
                 release()
                 mediaMuxer.stop()
                 mediaMuxer.release()
